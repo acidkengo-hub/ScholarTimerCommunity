@@ -2,16 +2,46 @@ import streamlit as st
 import requests
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
+from datetime import datetime
+from streamlit_autorefresh import st_autorefresh
 
 # --- 🔑 Supabaseの接続設定 ---
-# Streamlitのサーバーに教えた「秘密の鍵（Secrets）」を読み込む
 url: str = st.secrets["SUPABASE_URL"]
 key: str = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 
+# --- ⏱️ 24時間稼働のグローバル・タイマー（1秒ごとに画面を更新） ---
+st_autorefresh(interval=1000, key="global_timer")
+
+def get_global_pomodoro_state():
+    now = datetime.now()
+    m = now.minute
+    s = now.second
+    
+    # 0〜24分、30〜54分は「集中タイム」
+    if m < 25:
+        return "🔥 集中タイム", 24 - m, 59 - s, "#fff5f5", "#d9534f"
+    elif m < 30:
+        return "☕️ 休憩タイム", 29 - m, 59 - s, "#f0f8ff", "#5bc0de"
+    elif m < 55:
+        return "🔥 集中タイム", 54 - m, 59 - s, "#fff5f5", "#d9534f"
+    else:
+        return "☕️ 休憩タイム", 59 - m, 59 - s, "#f0f8ff", "#5bc0de"
+
+mode, r_min, r_sec, bg_color, text_color = get_global_pomodoro_state()
+
+# タイマーのUI（見た目）
+st.markdown(f"""
+<div style="background-color: {bg_color}; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid {text_color}; margin-bottom: 20px;">
+    <h3 style="color: {text_color}; margin: 0;">現在のポモドーロ列車</h3>
+    <h1 style="color: {text_color}; font-size: 70px; margin: 10px 0; font-family: monospace;">{r_min:02d}:{r_sec:02d}</h1>
+    <h2 style="color: {text_color}; margin: 0;">{mode}</h2>
+</div>
+""", unsafe_allow_html=True)
+
 # --- 画面のUI（見た目）を作る ---
-st.title("📚 論文執筆サポート：NDL検索 ＆ ポモドーロ記録")
-st.write("検索した本をタスクとして、Supabaseの金庫に記録します。")
+st.title("📚 仮想図書室：NDL検索 ＆ 乗車")
+st.write("検索した本をタスクとしてセットし、ポモドーロ列車に乗車（記録）します。")
 
 if "search_params" not in st.session_state:
     st.session_state.search_params = {}
