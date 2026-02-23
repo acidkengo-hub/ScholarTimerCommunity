@@ -39,6 +39,33 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# --- 🎫 乗車カード（現在のタスク管理） ---
+if "active_task" not in st.session_state:
+    st.session_state.active_task = None
+
+if st.session_state.active_task:
+    st.success(f"🚃 現在乗車中：『{st.session_state.active_task}』に取り組んでいます！")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        if st.button("🎉 1ポモドーロ完了して記録！"):
+            try:
+                supabase.table('pomodoro_logs').insert({
+                    "task_name": st.session_state.active_task,
+                    "duration_seconds": 1500
+                }).execute()
+                st.session_state.active_task = None  # 乗車終了（タスクを空にする）
+                st.balloons()
+                st.rerun() # 画面をリロード
+            except Exception as e:
+                st.error(f"⚠️ 保存に失敗しました: {e}")
+    with col_b:
+        if st.button("🚪 途中下車する（記録しない）"):
+            st.session_state.active_task = None
+            st.rerun()
+    
+    st.markdown("---") # 区切り線
+
 # --- 画面のUI（見た目）を作る ---
 st.title("📚 仮想図書室：NDL検索 ＆ 乗車")
 st.write("検索した本をタスクとしてセットし、ポモドーロ列車に乗車（記録）します。")
@@ -111,16 +138,7 @@ if st.session_state.search_params:
                 st.subheader(f"{total_index}. {book_title}")
                 st.write(f"🏢 出版社: {publisher}  |  📅 出版年: {date}")
                 
-                # 【新機能】Supabaseの金庫にデータを投げ込むボタン
-                if st.button(f"🍅 「{book_title}」の執筆を記録 (25分)", key=f"btn_{total_index}"):
-                    try:
-                        # Supabaseの 'pomodoro_logs' テーブルにデータを挿入
-                        supabase.table('pomodoro_logs').insert({
-                            "task_name": book_title,
-                            "duration_seconds": 1500  # 25分 * 60秒
-                        }).execute()
-                        
-                        st.success(f"🎉 記録完了！金庫に「{book_title}」の1ポモドーロを保存しました！")
-                        st.balloons() # 成功したら風船を飛ばす！
-                    except Exception as e:
-                        st.error(f"⚠️ 保存に失敗しました: {e}")
+                # 【新機能】乗車ボタン
+                if st.button(f"🚃 「{book_title}」をタスクにして乗車", key=f"btn_{total_index}"):
+                    st.session_state.active_task = book_title
+                    st.rerun() # 画面をリロードして上部の「現在乗車中」を表示
